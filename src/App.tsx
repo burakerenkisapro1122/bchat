@@ -1,18 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { User, Message, Group } from './types';
-import { 
-  Send, 
-  Plus, 
-  Users, 
-  MessageSquare, 
-  LogOut, 
-  Search,
-  Hash,
-  User as UserIcon,
-  ChevronRight,
-  Loader2
-} from 'lucide-react';
+import { AlertCircle, Send, Plus, Users, MessageSquare, LogOut, Search, Hash, User as UserIcon, ChevronRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -27,6 +16,36 @@ export default function App() {
   const [usernameInput, setUsernameInput] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
+  // Check if Supabase is configured
+  if (!supabase) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-[32px] p-10 shadow-xl text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+            <AlertCircle className="text-red-500 w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-serif font-medium text-[#1A1A1A] mb-4">Configuration Required</h1>
+          <p className="text-[#5A5A40]/60 mb-8">
+            Please set your Supabase environment variables in the Secrets panel:
+          </p>
+          <div className="bg-[#F5F5F0] p-4 rounded-xl text-left font-mono text-xs space-y-2 mb-8">
+            <div className="flex justify-between">
+              <span className="text-[#5A5A40]/40">VITE_SUPABASE_URL</span>
+              <span className="text-red-500">Missing</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#5A5A40]/40">VITE_SUPABASE_ANON_KEY</span>
+              <span className="text-red-500">Missing</span>
+            </div>
+          </div>
+          <p className="text-xs text-[#5A5A40]/40">
+            After adding the secrets, the app will refresh automatically.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
   const [activeTab, setActiveTab] = useState<'chats' | 'groups'>('chats');
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -37,7 +56,7 @@ export default function App() {
 
   // Clear unread count when chat becomes active
   useEffect(() => {
-    if (activeChat) {
+    if (activeChat?.id) {
       setUnreadCounts(prev => ({
         ...prev,
         [activeChat.id]: 0
@@ -57,6 +76,7 @@ export default function App() {
           table: 'messages'
         }, 
         (payload) => {
+          if (!currentUser) return;
           const msg = payload.new as Message;
           
           // Ignore messages sent by current user
@@ -109,6 +129,7 @@ export default function App() {
     if (!currentUser) return;
 
     const fetchData = async () => {
+      if (!currentUser?.id) return;
       const { data: userData } = await supabase.from('users').select('*').neq('id', currentUser.id);
       if (userData) setUsers(userData);
 
@@ -164,6 +185,7 @@ export default function App() {
             : undefined
         }, 
         async (payload) => {
+          if (!currentUser?.id || !activeChat?.id) return;
           const newMessage = payload.new as Message;
           
           // For 1-on-1, filter manually if needed (Supabase filter is limited)
@@ -327,9 +349,11 @@ export default function App() {
     );
   }
 
-  const activeChatInfo = activeChat?.type === 'user' 
-    ? users.find(u => u.id === activeChat.id)
-    : groups.find(g => g.id === activeChat.id);
+  const activeChatInfo = activeChat 
+    ? (activeChat.type === 'user' 
+        ? users.find(u => u?.id === activeChat.id)
+        : groups.find(g => g?.id === activeChat.id))
+    : null;
 
   return (
     <div className="h-screen bg-[#F5F5F0] flex overflow-hidden">
@@ -480,7 +504,7 @@ export default function App() {
             <div className="h-20 px-8 border-bottom border-[#E5E5E0] flex items-center justify-between bg-white z-10">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-[#F5F5F0] rounded-xl flex items-center justify-center text-xl font-medium text-[#5A5A40]">
-                  {activeChat.type === 'user' ? (activeChatInfo as User)?.username[0].toUpperCase() : <Hash className="w-6 h-6" />}
+                  {activeChat.type === 'user' ? (activeChatInfo as User)?.username?.[0]?.toUpperCase() : <Hash className="w-6 h-6" />}
                 </div>
                 <div>
                   <h2 className="font-serif text-xl font-medium text-[#1A1A1A]">
