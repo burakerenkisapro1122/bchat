@@ -1,0 +1,5 @@
+{
+  "name": "Supabase Chat",
+  "description": "A real-time chat application with group support, powered by Supabase.",
+  "requestFramePermissions": []
+}
